@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zotero Word Citations Windows"
+  short_description: "Insert live Zotero citations into Word on Windows."
+  default_prompt: "Use $zotero-word-citations-windows to insert a live Zotero citation into my Word document."
