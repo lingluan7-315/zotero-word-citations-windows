@@ -1,7 +1,7 @@
 "use strict";
 
 (function () {
-  const BRIDGE_VERSION = "0.2.0";
+  const BRIDGE_VERSION = "0.2.3";
   const DEFAULT_STYLE_ID = "http://www.zotero.org/styles/apa";
   const WORD_AGENT = "MacWord16";
   const WORD_DOCUMENT_ID = __CODEX_WORD_DOCUMENT_ID__;
@@ -409,7 +409,10 @@
       if (io.primaryFieldType) {
         io.fieldType = io.primaryFieldType;
       }
-      io.delayCitationUpdates = false;
+      // Do not make an unattended insertion refresh every Zotero field in the
+      // document. That refresh is where Word reports "Error Updating Document"
+      // for legacy, manually edited, or mixed-source fields.
+      io.delayCitationUpdates = true;
       io.automaticJournalAbbreviations = false;
     }
 
@@ -425,7 +428,7 @@
 
     const citationUpdates = win.document.getElementById("automaticCitationUpdates-checkbox");
     if (citationUpdates) {
-      citationUpdates.checked = true;
+      citationUpdates.checked = false;
     }
 
     const abbreviations = win.document.getElementById("automaticJournalAbbreviations");
@@ -731,6 +734,12 @@
       throw new Error(`Current Zotero integration window is not Quick Format: ${getWindowURL(win)}`);
     }
 
+    // Existing documents skip Document Preferences, so make their current
+    // session defer the automatic full-document update as well.
+    const session = Zotero.Integration.currentSession;
+    if (session && session.data && session.data.prefs) {
+      session.data.prefs.delayCitationUpdates = true;
+    }
     await acceptQuickFormatWindow(win, citationItems);
     if (Zotero.Integration.currentCommandPromise) {
       await Promise.race([

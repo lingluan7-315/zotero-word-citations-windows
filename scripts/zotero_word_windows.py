@@ -121,7 +121,7 @@ def register_extension(profile: Optional[Path] = None, xpi: Optional[Path] = Non
     addons.append({
         "id": ADDON_ID,
         "syncGUID": "{codex-word-bridge-local}",
-        "version": "0.2.0",
+        "version": "0.2.3",
         "type": "extension",
         "loader": None,
         "manifestVersion": 2,
@@ -318,6 +318,20 @@ def wait_integration_window(timeout: int = 30) -> str:
     raise RuntimeError("Zotero integration dialog did not load; currentWindowURL=%s" % current_url)
 
 
+def wait_for_refresh(timeout: int) -> Dict[str, Any]:
+    deadline = time.time() + timeout
+    observed_busy = False
+    last = {}
+    while time.time() < deadline:
+        last = bridge_status()
+        if last.get("busy"):
+            observed_busy = True
+        elif observed_busy:
+            return last
+        time.sleep(0.25)
+    raise RuntimeError("Zotero refresh did not complete; observed_busy=%s last=%s" % (observed_busy, last))
+
+
 def select_zotero_field(doc: Any, item_key: str) -> None:
     for field in doc.Fields:
         if "ZOTERO_ITEM" in field.Code.Text and item_key in field.Code.Text:
@@ -385,16 +399,19 @@ def insert(args: argparse.Namespace) -> Dict[str, Any]:
 
 def refresh(args: argparse.Namespace) -> Dict[str, Any]:
     word, doc, opened_by_script, word_owned = open_word(args.docx, False)
+    completed = False
     try:
         word.Run("Project.Zotero.ZoteroRefresh")
+        status = wait_for_refresh(args.timeout)
+        completed = True
         if args.save:
             doc.Save()
         document = getattr(doc, "FullName", None)
-        return {"refreshed": True, "document": document}
+        return {"refreshed": True, "document": document, "status": status}
     finally:
-        if args.close and opened_by_script:
+        if completed and args.close and opened_by_script:
             doc.Close(False)
-        if args.close and word_owned:
+        if completed and args.close and word_owned:
             word.Quit(False)
 
 
@@ -436,6 +453,7 @@ def main() -> None:
     refresh_parser.add_argument("--docx")
     refresh_parser.add_argument("--save", action="store_true")
     refresh_parser.add_argument("--close", action="store_true")
+    refresh_parser.add_argument("--timeout", type=int, default=150)
     args = parser.parse_args()
     if args.command == "check":
         print_json(check())
