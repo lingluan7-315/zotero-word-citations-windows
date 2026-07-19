@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Codex Zotero Word Bridge",
-  "version": "0.1.0",
+  "version": "0.2.3",
   "description": "Local bridge for inserting real Zotero Word citations from Codex.",
   "author": "OpenAI Codex",
   "applications": {
